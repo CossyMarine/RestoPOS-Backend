@@ -1,31 +1,75 @@
+// models/Settings.js
 const mongoose = require("mongoose");
 
-const settingsSchema = new mongoose.Schema(
-  {
-    minWithdrawal: { type: Number, default: 5 }, // Default $5
-    withdrawalDays: { type: Number, default: 7 }, // Withdraw every 7 days
-    dailyCheckInEnabled: { type: Boolean, default: true },
-    platformFeePct: { type: Number, default: 30 }, // % fee on poster deposit
-    autoApproveDays: { type: Number, default: 3 },  // poster has N days to act
-    minPayGlobal: { type: Number, default: 0.05 },  // fallback min per task
+const badgeTierSchema = new mongoose.Schema({
+  name:         { type: String, required: true },
+  minReferrals: { type: Number, required: true },
+  badgeImage:   { type: String },
+  color:        { type: String },
+}, { _id: true });
 
-  // Optional per-category minimums and suggested ranges
-  categoryMinimums: {
-    type: Map,
-    of: Number, // e.g. { survey: 0.08, video: 0.05, app_install: 0.25 }
-    default: {}
-  },
-  categoryRecommendations: {
-    type: Map,
-    of: new mongoose.Schema({
-      low: Number, mid: Number, high: Number
-    }, { _id: false }),
-    default: {}
-  }
+const announcementSchema = new mongoose.Schema({
+  text:      { type: String, required: true },
+  isActive:  { type: Boolean, default: true },
+  createdAt: { type: Date, default: Date.now },
+}, { _id: true });
 
+const pollOptionSchema = new mongoose.Schema({
+  text:  { type: String, required: true },
+  votes: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+}, { _id: true });
 
-  },
-  { timestamps: true }
-);
+const pollSchema = new mongoose.Schema({
+  question:  { type: String, required: true },
+  options:   [pollOptionSchema],
+  isActive:  { type: Boolean, default: true },
+  expiresAt: { type: Date },
+  createdAt: { type: Date, default: Date.now },
+}, { _id: true });
+
+const settingsSchema = new mongoose.Schema({
+  // FEES — set by admin, no defaults
+  platformFeePct:   { type: Number },
+  offerwallFeePct:  { type: Number },
+  withdrawalFeePct: { type: Number },
+  minWithdrawal:    { type: Number },
+  withdrawalDays:   { type: Number },
+  signupBonus:      { type: Number },
+
+  // DAILY CHECK-IN — set by admin
+  dailyCheckInEnabled: { type: Boolean },
+  dailyCheckInAmount:  { type: Number },
+
+  // REFERRAL — set by admin
+  referralCommissionPct:   { type: Number },
+  referralSystemCutPct:    { type: Number },
+  referralTasksToActivate: { type: Number },
+
+  // BADGES — admin adds/edits/removes tiers
+  badgeTiers: { type: [badgeTierSchema], default: [] },
+
+  // CAMPAIGNS — set by admin
+  autoApproveDays: { type: Number },
+  minPayGlobal:    { type: Number },
+  categoryMinimums: { type: Map, of: Number, default: {} },
+
+  // ANNOUNCEMENTS — admin posts these
+  announcements: { type: [announcementSchema], default: [] },
+
+  // POLLS — admin creates these
+  polls: { type: [pollSchema], default: [] },
+
+  // MAINTENANCE — admin toggles
+  maintenanceMode:    { type: Boolean },
+  maintenanceMessage: { type: String },
+
+}, { timestamps: true });
+
+// Singleton — one settings document ever
+settingsSchema.statics.getSingleton = async function () {
+  let s = await this.findOne();
+  if (!s) s = await this.create({});
+  return s;
+};
 
 module.exports = mongoose.model("Settings", settingsSchema);
