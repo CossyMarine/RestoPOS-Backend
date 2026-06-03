@@ -1,39 +1,29 @@
 const express = require("express");
-const router = express.Router();
+const router  = express.Router();
 const { protect } = require("../Middlewares/authMiddleware");
-const roleMiddleware = require("../Middlewares/roleMiddleware");
-const {
-  blockUser,
-  changeRole,
-  getAnalytics,
-  updateWithdrawalSettings,
-  toggleDailyCheckIn,
-} = require("../Controllers/AdminController");
+const role    = require("../Middlewares/roleMiddleware");
+const A       = require("../Controllers/AdminController");
+const W       = require("../Controllers/WalletController");
 
-// 🔹 Test route
-router.get("/admin-only", protect, roleMiddleware("admin"), (req, res) => {
-  res.json({ message: "Welcome, Admin!" });
-});
+const isAdmin      = [protect, role("admin", "superadmin")];
+const isSuperAdmin = [protect, role("superadmin")];
 
-// 🔹 User management
-router.put("/block-user", protect, roleMiddleware("admin"), blockUser);
-router.put("/change-role", protect, roleMiddleware("admin"), changeRole);
-
-// 🔹 Analytics
-router.get("/analytics", protect, roleMiddleware("admin"), getAnalytics);
-
-// 🔹 System settings
-router.put(
-  "/withdrawal-settings",
-  protect,
-  roleMiddleware("admin"),
-  updateWithdrawalSettings
-);
-router.put(
-  "/toggle-daily-checkin",
-  protect,
-  roleMiddleware("admin"),
-  toggleDailyCheckIn
-);
+router.get   ("/users",                  ...isAdmin,      A.getAllUsers);
+router.put   ("/block-user",             ...isAdmin,      A.blockUser);
+router.put   ("/change-role",            ...isSuperAdmin, A.changeRole);
+router.put   ("/assign-badge",           ...isAdmin,      A.assignBadge);
+router.put   ("/admin-permissions",      ...isSuperAdmin, A.updateAdminPermissions);
+router.get   ("/analytics",              ...isAdmin,      A.getAnalytics);
+router.get   ("/settings",               ...isAdmin,      A.getSettings);
+router.put   ("/settings",               ...isAdmin,      A.updateSettings);
+router.put   ("/badge-tiers",            ...isAdmin,      A.updateBadgeTiers);
+router.post  ("/announcements",          ...isAdmin,      A.addAnnouncement);
+router.put   ("/announcements/:id",      ...isAdmin,      A.updateAnnouncement);
+router.delete("/announcements/:id",      ...isAdmin,      A.deleteAnnouncement);
+router.post  ("/polls",                  ...isAdmin,      A.createPoll);
+router.put   ("/polls/:id/close",        ...isAdmin,      A.closePoll);
+router.delete("/polls/:id",             ...isAdmin,      A.deletePoll);
+router.put   ("/wallet/edit",            ...isAdmin,      W.editWalletBalance);
+router.put   ("/wallet/process-withdrawal", ...isAdmin,   W.processWithdrawal);
 
 module.exports = router;
