@@ -1,13 +1,8 @@
-const AuditLog = require("../models/AuditLog");
+import AuditLog from "../models/AuditLog.js";
 
-exports.createLog = async (adminId, action, details, ipAddress) => {
+export const createLog = async (adminId, action, details, ipAddress) => {
   try {
-    await AuditLog.create({
-      admin: adminId,
-      action,
-      details,
-      ipAddress,
-    });
+    await AuditLog.create({ admin: adminId, action, details, ipAddress });
   } catch (error) {
     console.error("Audit Log Error:", error.message);
   }
