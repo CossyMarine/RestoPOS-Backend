@@ -1,29 +1,26 @@
-// utils/sendEmail.js
-require("dotenv").config();
-const nodemailer = require("nodemailer");
+import "dotenv/config";
+import nodemailer from "nodemailer";
 
 const sendEmail = async (options) => {
   if (!options.email) throw new Error("Recipient email is required");
 
   try {
-    // Configure Gmail SMTP
     const transporter = nodemailer.createTransport({
       host: "smtp.gmail.com",
-      port: 587,       // TLS port
-      secure: false,   // false for 587
+      port: 587,
+      secure: false,
       auth: {
         user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS, // Gmail App Password
+        pass: process.env.EMAIL_PASS,
       },
     });
 
-    // Email content
     const mailOptions = {
       from: process.env.EMAIL_FROM,
       to: options.email,
       subject: options.subject,
-      text: options.message,        // plain text fallback
-      html: options.html || null,   // optional HTML content
+      text: options.message,
+      html: options.html || null,
     };
 
     const info = await transporter.sendMail(mailOptions);
@@ -35,4 +32,4 @@ const sendEmail = async (options) => {
   }
 };
 
-module.exports = sendEmail;
+export default sendEmail;
