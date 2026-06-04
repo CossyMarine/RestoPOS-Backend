@@ -1,15 +1,10 @@
-const express = require("express");
-const router = express.Router();
-const { protect } = require("../Middlewares/authMiddleware");
-const {
-  updateRefereeTasks,
-  getReferralStats
-} = require("../Controllers/ReferralController");
+import { Router } from "express";
+import { protect } from "../Middlewares/authMiddleware.js";
+import { updateRefereeTasks, getReferralStats } from "../Controllers/ReferralController.js";
 
-// Update tasks completed by referee
+const router = Router();
+
 router.put("/update-tasks", protect, updateRefereeTasks);
-
-// Get referral stats for user
 router.get("/me", protect, getReferralStats);
 
-module.exports = router;
+export default router;
