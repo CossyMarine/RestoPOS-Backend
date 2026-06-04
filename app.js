@@ -25,7 +25,7 @@ dotenv.config();
    CORS
 ================================================= */
 const ALLOWED_ORIGINS = [
-  "https://marinecash.vercel.app",
+  "https://mainecash.vercel.app",
   "http://localhost:5173",
   "http://localhost:3000",
 ];
