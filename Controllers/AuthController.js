@@ -1,16 +1,17 @@
-const User    = require("../models/User");
-const Token   = require("../models/Token");
-const Wallet  = require("../models/Wallet");
-const WalletTransaction = require("../models/WalletTransaction");
-const Settings = require("../models/Settings");
-const bcrypt  = require("bcryptjs");
-const jwt     = require("jsonwebtoken");
-const crypto  = require("crypto");
-const sendEmail = require("../Utils/sendEmail");
+import User from "../models/User.js";
+import Token from "../models/Token.js";
+import Wallet from "../models/Wallet.js";
+import WalletTransaction from "../models/WalletTransaction.js";
+import Settings from "../models/Settings.js";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+import crypto from "crypto";
+import sendEmail from "../Utils/SendEmail.js";
+import { addReferral } from "./ReferralController.js";
 
 const generateToken = (id) => jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: "7d" });
 
-exports.register = async (req, res) => {
+export const register = async (req, res) => {
   try {
     const { fullName, email, country, phone, password, confirmPassword, agreedToTerms, referralCode } = req.body;
 
@@ -29,19 +30,15 @@ exports.register = async (req, res) => {
       password: hashedPassword, agreedToTerms, isVerified: false,
     });
 
-    // Create wallet with zero balance — signup bonus added only after email verification
     await Wallet.create({ user: newUser._id, balance: 0 });
 
-    // Handle referral
     if (referralCode) {
       const referrer = await User.findOne({ referralCode });
       if (referrer && String(referrer._id) !== String(newUser._id)) {
-        const { addReferral } = require("./ReferralController");
         await addReferral({ referrerId: referrer._id, refereeId: newUser._id });
       }
     }
 
-    // Send verification email
     const token = crypto.randomBytes(32).toString("hex");
     await Token.create({ userId: newUser._id, token, type: "verify", expiresAt: new Date(Date.now() + 3600000) });
     const verifyUrl = `${process.env.BACKEND_URL}/api/auth/verify?token=${token}&id=${newUser._id}`;
@@ -49,7 +46,25 @@ exports.register = async (req, res) => {
     await sendEmail({
       email: newUser.email,
       subject: "Verify your MarineCash account",
-      html: `<p>Hi ${newUser.fullName},</p><p>Verify your email: <a href="${verifyUrl}">Click here</a></p>`,
+      html: `
+        <div style="font-family:'Segoe UI',Arial,sans-serif;max-width:560px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+          <div style="background:linear-gradient(135deg,#0ea5e9 0%,#0369a1 100%);padding:40px 32px;text-align:center;">
+            <h1 style="color:#ffffff;margin:0;font-size:28px;font-weight:700;letter-spacing:-0.5px;">🌊 MarineCash</h1>
+            <p style="color:#bae6fd;margin:8px 0 0;font-size:14px;">Earn. Grow. Thrive.</p>
+          </div>
+          <div style="padding:40px 32px;">
+            <h2 style="color:#0f172a;font-size:22px;margin:0 0 12px;">Welcome, ${newUser.fullName}! 👋</h2>
+            <p style="color:#475569;font-size:15px;line-height:1.6;margin:0 0 28px;">Thanks for signing up. One last step — verify your email address to activate your account and start earning.</p>
+            <div style="text-align:center;margin:0 0 32px;">
+              <a href="${verifyUrl}" style="display:inline-block;background:linear-gradient(135deg,#0ea5e9,#0369a1);color:#ffffff;text-decoration:none;font-size:15px;font-weight:600;padding:14px 36px;border-radius:8px;letter-spacing:0.3px;">✅ Verify My Email</a>
+            </div>
+            <p style="color:#94a3b8;font-size:13px;text-align:center;margin:0;">This link expires in <strong>1 hour</strong>. If you didn't create an account, you can safely ignore this email.</p>
+          </div>
+          <div style="background:#f8fafc;padding:20px 32px;text-align:center;border-top:1px solid #e2e8f0;">
+            <p style="color:#94a3b8;font-size:12px;margin:0;">© ${new Date().getFullYear()} MarineCash. All rights reserved.</p>
+          </div>
+        </div>
+      `,
     });
 
     res.status(201).json({ message: "Verification email sent. Please check your inbox." });
@@ -58,7 +73,7 @@ exports.register = async (req, res) => {
   }
 };
 
-exports.verifyEmail = async (req, res) => {
+export const verifyEmail = async (req, res) => {
   try {
     const { token, id } = req.query;
     if (!token || !id)
@@ -76,7 +91,6 @@ exports.verifyEmail = async (req, res) => {
     await user.save();
     await Token.deleteOne({ _id: tokenDoc._id });
 
-    // Give signup bonus only if admin has configured it
     if (!user.signupBonusGiven) {
       const settings = await Settings.getSingleton();
       if (settings.signupBonus != null && settings.signupBonus > 0) {
@@ -100,8 +114,24 @@ exports.verifyEmail = async (req, res) => {
 
     await sendEmail({
       email: user.email,
-      subject: "Welcome to MarineCash!",
-      html: `<h2>Hi ${user.fullName},</h2><p>Your email is verified. Start earning today!</p>`,
+      subject: "🎉 You're verified — Welcome to MarineCash!",
+      html: `
+        <div style="font-family:'Segoe UI',Arial,sans-serif;max-width:560px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+          <div style="background:linear-gradient(135deg,#0ea5e9 0%,#0369a1 100%);padding:40px 32px;text-align:center;">
+            <h1 style="color:#ffffff;margin:0;font-size:28px;font-weight:700;">🌊 MarineCash</h1>
+            <p style="color:#bae6fd;margin:8px 0 0;font-size:14px;">Earn. Grow. Thrive.</p>
+          </div>
+          <div style="padding:40px 32px;text-align:center;">
+            <div style="font-size:56px;margin-bottom:16px;">🎉</div>
+            <h2 style="color:#0f172a;font-size:24px;margin:0 0 12px;">You're all set, ${user.fullName}!</h2>
+            <p style="color:#475569;font-size:15px;line-height:1.6;margin:0 0 28px;">Your email has been verified. Your account is now active — time to start earning!</p>
+            <a href="${process.env.FRONTEND_URL}/dashboard" style="display:inline-block;background:linear-gradient(135deg,#0ea5e9,#0369a1);color:#ffffff;text-decoration:none;font-size:15px;font-weight:600;padding:14px 36px;border-radius:8px;">🚀 Go to Dashboard</a>
+          </div>
+          <div style="background:#f8fafc;padding:20px 32px;text-align:center;border-top:1px solid #e2e8f0;">
+            <p style="color:#94a3b8;font-size:12px;margin:0;">© ${new Date().getFullYear()} MarineCash. All rights reserved.</p>
+          </div>
+        </div>
+      `,
     });
 
     res.redirect(`${process.env.FRONTEND_URL}/verify-email?status=success`);
@@ -110,7 +140,7 @@ exports.verifyEmail = async (req, res) => {
   }
 };
 
-exports.resendVerification = async (req, res) => {
+export const resendVerification = async (req, res) => {
   try {
     const user = await User.findOne({ email: req.body.email });
     if (!user) return res.status(404).json({ message: "User not found" });
@@ -123,8 +153,26 @@ exports.resendVerification = async (req, res) => {
     const verifyUrl = `${process.env.BACKEND_URL}/api/auth/verify?token=${token}&id=${user._id}`;
     await sendEmail({
       email: user.email,
-      subject: "Resend Verification - MarineCash",
-      html: `<p>Hi ${user.fullName},</p><p><a href="${verifyUrl}">Verify your email</a></p>`,
+      subject: "Resend: Verify your MarineCash account",
+      html: `
+        <div style="font-family:'Segoe UI',Arial,sans-serif;max-width:560px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+          <div style="background:linear-gradient(135deg,#0ea5e9 0%,#0369a1 100%);padding:40px 32px;text-align:center;">
+            <h1 style="color:#ffffff;margin:0;font-size:28px;font-weight:700;">🌊 MarineCash</h1>
+            <p style="color:#bae6fd;margin:8px 0 0;font-size:14px;">Earn. Grow. Thrive.</p>
+          </div>
+          <div style="padding:40px 32px;">
+            <h2 style="color:#0f172a;font-size:22px;margin:0 0 12px;">Hi ${user.fullName},</h2>
+            <p style="color:#475569;font-size:15px;line-height:1.6;margin:0 0 28px;">Here's your new verification link. Click the button below to verify your email and activate your account.</p>
+            <div style="text-align:center;margin:0 0 32px;">
+              <a href="${verifyUrl}" style="display:inline-block;background:linear-gradient(135deg,#0ea5e9,#0369a1);color:#ffffff;text-decoration:none;font-size:15px;font-weight:600;padding:14px 36px;border-radius:8px;">✅ Verify My Email</a>
+            </div>
+            <p style="color:#94a3b8;font-size:13px;text-align:center;margin:0;">This link expires in <strong>1 hour</strong>.</p>
+          </div>
+          <div style="background:#f8fafc;padding:20px 32px;text-align:center;border-top:1px solid #e2e8f0;">
+            <p style="color:#94a3b8;font-size:12px;margin:0;">© ${new Date().getFullYear()} MarineCash. All rights reserved.</p>
+          </div>
+        </div>
+      `,
     });
 
     res.json({ message: "Verification email resent" });
@@ -133,7 +181,7 @@ exports.resendVerification = async (req, res) => {
   }
 };
 
-exports.login = async (req, res) => {
+export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
     const user = await User.findOne({ email });
@@ -172,7 +220,7 @@ exports.login = async (req, res) => {
   }
 };
 
-exports.forgotPassword = async (req, res) => {
+export const forgotPassword = async (req, res) => {
   try {
     const user = await User.findOne({ email: req.body.email });
     if (!user) return res.status(404).json({ message: "User not found" });
@@ -185,7 +233,25 @@ exports.forgotPassword = async (req, res) => {
     await sendEmail({
       email: user.email,
       subject: "Reset your MarineCash password",
-      html: `<p>Click below to reset your password:</p><a href="${resetUrl}">Reset Password</a>`,
+      html: `
+        <div style="font-family:'Segoe UI',Arial,sans-serif;max-width:560px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+          <div style="background:linear-gradient(135deg,#0ea5e9 0%,#0369a1 100%);padding:40px 32px;text-align:center;">
+            <h1 style="color:#ffffff;margin:0;font-size:28px;font-weight:700;">🌊 MarineCash</h1>
+            <p style="color:#bae6fd;margin:8px 0 0;font-size:14px;">Earn. Grow. Thrive.</p>
+          </div>
+          <div style="padding:40px 32px;">
+            <h2 style="color:#0f172a;font-size:22px;margin:0 0 12px;">Password Reset Request</h2>
+            <p style="color:#475569;font-size:15px;line-height:1.6;margin:0 0 28px;">Hi ${user.fullName}, we received a request to reset your password. Click the button below to set a new one.</p>
+            <div style="text-align:center;margin:0 0 32px;">
+              <a href="${resetUrl}" style="display:inline-block;background:linear-gradient(135deg,#f97316,#ea580c);color:#ffffff;text-decoration:none;font-size:15px;font-weight:600;padding:14px 36px;border-radius:8px;">🔑 Reset Password</a>
+            </div>
+            <p style="color:#94a3b8;font-size:13px;text-align:center;margin:0;">This link expires in <strong>1 hour</strong>. If you didn't request this, ignore this email — your password won't change.</p>
+          </div>
+          <div style="background:#f8fafc;padding:20px 32px;text-align:center;border-top:1px solid #e2e8f0;">
+            <p style="color:#94a3b8;font-size:12px;margin:0;">© ${new Date().getFullYear()} MarineCash. All rights reserved.</p>
+          </div>
+        </div>
+      `,
     });
 
     res.json({ message: "Password reset email sent" });
@@ -194,7 +260,7 @@ exports.forgotPassword = async (req, res) => {
   }
 };
 
-exports.resetPassword = async (req, res) => {
+export const resetPassword = async (req, res) => {
   try {
     const tokenDoc = await Token.findOne({ token: req.params.token, type: "reset", expiresAt: { $gt: new Date() } });
     if (!tokenDoc) return res.status(400).json({ message: "Invalid or expired token" });
@@ -212,7 +278,7 @@ exports.resetPassword = async (req, res) => {
   }
 };
 
-exports.getProfile = async (req, res) => {
+export const getProfile = async (req, res) => {
   try {
     const user = await User.findById(req.user._id).select("-password");
     if (!user) return res.status(404).json({ message: "User not found" });
