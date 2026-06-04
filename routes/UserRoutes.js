@@ -1,22 +1,13 @@
-const express = require("express");
-const router = express.Router();
+import { Router } from "express";
+import { protect } from "../Middlewares/authMiddleware.js";
+import restrictTo from "../Middlewares/roleMiddleware.js";
+import { getProfile, updateProfile, getAllUsers, updateUserRole } from "../Controllers/UserController.js";
 
-// Middlewares
-const { protect } = require("../Middlewares/authMiddleware"); // named export
-const restrictTo = require("../Middlewares/roleMiddleware"); // default export
+const router = Router();
 
-// Controllers
-const {
-  getProfile,
-  updateProfile,
-  getAllUsers,
-  updateUserRole
-} = require("../controllers/UserController");
-
-// Routes
-router.get("/profile", protect, getProfile); // any logged-in user
+router.get("/profile", protect, getProfile);
 router.put("/profile", protect, updateProfile);
-router.get("/", protect, restrictTo("admin"), getAllUsers); // admin only
-router.put("/update-role", protect, restrictTo("admin"), updateUserRole); // admin only
+router.get("/", protect, restrictTo("admin"), getAllUsers);
+router.put("/update-role", protect, restrictTo("admin"), updateUserRole);
 
-module.exports = router;
+export default router;
