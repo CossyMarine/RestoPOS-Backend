@@ -1,21 +1,12 @@
-// Routes/TaskSubmissionRoutes.js
-const express = require("express");
-const router = express.Router();
-const {
-  createSubmission,
-  approveSubmission,
-  rejectSubmission,
-} = require("../Controllers/TaskSubmissionController");
-const { protect } = require("../Middlewares/authMiddleware");
-const roleMiddleware = require("../Middlewares/roleMiddleware");
+import { Router } from "express";
+import { createSubmission, approveSubmission, rejectSubmission } from "../Controllers/TaskSubmissionController.js";
+import { protect } from "../Middlewares/authMiddleware.js";
+import roleMiddleware from "../Middlewares/roleMiddleware.js";
 
-// User creates a submission
+const router = Router();
+
 router.post("/", protect, createSubmission);
+router.put("/:id/approve", protect, roleMiddleware("admin"), approveSubmission);
+router.put("/:id/reject", protect, roleMiddleware("admin"), rejectSubmission);
 
-// Admin approves submission
-router.put("/:id/approve", protect, roleMiddleware(["admin"]), approveSubmission);
-
-// Admin rejects submission
-router.put("/:id/reject", protect, roleMiddleware(["admin"]), rejectSubmission);
-
-module.exports = router;
+export default router;
