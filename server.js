@@ -1,103 +1,84 @@
-require("dotenv").config();
-const express = require("express");
-const cors = require("cors");
-const http = require("http");
-const { Server } = require("socket.io");
-const connectDB = require("./Config/connectDB");
+import mongoose from "mongoose";
+import dotenv from "dotenv";
+import http from "http";
+import { Server } from "socket.io";
+import app from "./app.js";
+import Message from "./models/Message.js";
 
-const Message = require("./models/Message");
+dotenv.config();
 
-// Routes
-const authRoutes = require("./routes/AuthRoutes");
-const userRoutes = require("./routes/UserRoutes");
-const walletRoutes = require("./routes/WalletRoutes");
-const taskRoutes = require("./routes/TaskRoutes");
-const referralRoutes = require("./routes/ReferralRoutes");
-const chatRoutes = require("./routes/ChatRoutes");
+/* ========================================
+   🗄️ CONNECT TO MONGODB
+======================================== */
+mongoose
+  .connect(process.env.MONGO_URI)
+  .then(() => console.log("✅ MongoDB connected"))
+  .catch((err) => console.log("❌ MongoDB error:", err));
 
-const app = express();
+const PORT = process.env.PORT || 5000;
+
+/* ========================================
+   🌐 CREATE HTTP SERVER
+======================================== */
 const server = http.createServer(app);
 
-// Socket.IO setup
-const io = new Server(server, {
+/* ========================================
+   🔌 SOCKET.IO SETUP
+======================================== */
+export const io = new Server(server, {
   cors: {
-    origin: process.env.FRONTEND_URL || "http://localhost:5173",
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+      if (
+        origin.includes("marinecash.vercel.app") ||
+        origin.includes("localhost")
+      ) {
+        return callback(null, true);
+      }
+      console.log("🚫 Blocked by Socket.IO CORS:", origin);
+      callback(new Error("Not allowed by CORS"));
+    },
+    methods: ["GET", "POST"],
     credentials: true,
   },
 });
 
-io.on("connection", (socket) => {
-  console.log("✅ New user connected:", socket.id);
+/* Make io accessible in controllers */
+app.set("io", io);
 
-  // Listen for message
+/* ========================================
+   🔗 SOCKET CONNECTION
+======================================== */
+io.on("connection", (socket) => {
+  console.log("🔌 New client connected:", socket.id);
+
   socket.on("sendMessage", async (data) => {
     try {
       const newMessage = new Message({
-        sender: data.userId, // frontend must pass userId
+        sender: data.userId,
         content: data.content,
         type: "text",
       });
-
       await newMessage.save();
-
-      // Populate sender before sending back
-      const populatedMsg = await newMessage.populate(
-        "sender",
-        "fullName badge referralLevel"
-      );
-
-      // Broadcast to ALL users
-      io.emit("receiveMessage", populatedMsg);
+      const populated = await newMessage.populate("sender", "fullName badge referralLevel");
+      io.emit("receiveMessage", populated);
     } catch (err) {
       console.error("❌ Error saving message:", err);
     }
   });
 
-  // Typing indicator
   socket.on("typing", ({ userName }) => {
     socket.broadcast.emit("typing", { userName });
   });
 
   socket.on("disconnect", () => {
-    console.log("❌ User disconnected:", socket.id);
+    console.log("❌ Client disconnected:", socket.id);
   });
 });
 
-// Connect to MongoDB
-connectDB().then(() => {
-  console.log("✅ Database connected");
-});
-
-// Enable CORS + JSON
-app.use(
-  cors({
-    origin: process.env.FRONTEND_URL || "http://localhost:5173",
-    credentials: true,
-  })
+/* ========================================
+   🚀 START SERVER
+======================================== */
+server.listen(PORT, () =>
+  console.log(`🚀 Server running on port ${PORT}`)
 );
-app.use(express.json());
-
-// Test route
-app.get("/api/test", (req, res) => {
-  res.json({ message: "Backend is working!" });
-});
-
-// Mount routes
-app.use("/api/auth", authRoutes);
-app.use("/api/users", userRoutes);
-app.use("/api/wallet", walletRoutes);
-app.use("/api/tasks", taskRoutes);
-app.use("/api/referral", referralRoutes);
-app.use("/api/chat", chatRoutes);
-
-// Error handler
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res
-    .status(err.status || 500)
-    .json({ message: err.message || "Server Error" });
-});
-
-// Start server
-const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
