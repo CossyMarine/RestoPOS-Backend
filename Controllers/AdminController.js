@@ -166,36 +166,55 @@ export const deletePoll = async (req, res) => {
   } catch (e) { res.status(500).json({ message: e.message }); }
 };
 
+
 export const handleCheckIn = async (req, res) => {
   try {
     const settings = await Settings.getSingleton();
+
     if (!settings.dailyCheckInEnabled)
       return res.status(403).json({ message: "Daily check-in is currently disabled." });
     if (settings.dailyCheckInAmount == null)
-      return res.status(503).json({ message: "Check-in reward not configured by admin yet." });
+      return res.status(503).json({ message: "Check-in reward not configured yet." });
 
     const user = await User.findById(req.user._id);
-    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
     if (user.lastCheckIn && new Date(user.lastCheckIn) >= today)
       return res.status(400).json({ message: "Already claimed today. Come back tomorrow!" });
 
-    const wallet = await Wallet.findOne({ user: user._id });
-    wallet.balance += settings.dailyCheckInAmount;
-    wallet.earnedToday += settings.dailyCheckInAmount;
+    // ✅ Safe wallet upsert — won't crash on new users
+    let wallet = await Wallet.findOne({ user: user._id });
+    if (!wallet) {
+      wallet = await Wallet.create({ user: user._id, balance: 0, totalEarned: 0, earnedToday: 0 });
+    }
+
+    const amount = settings.dailyCheckInAmount;
+    wallet.balance += amount;
+    wallet.earnedToday = (wallet.earnedToday || 0) + amount;
+    wallet.totalEarned = (wallet.totalEarned || 0) + amount; // ✅ was missing
+
     await wallet.save();
 
     await WalletTransaction.create({
       user: user._id,
       type: "daily_checkin",
-      amount: settings.dailyCheckInAmount,
+      amount,
       fee: 0,
-      netAmount: settings.dailyCheckInAmount,
+      netAmount: amount,
       status: "completed",
     });
 
     user.lastCheckIn = new Date();
     await user.save();
 
-    res.json({ message: "Claimed!", amount: settings.dailyCheckInAmount, balance: wallet.balance });
-  } catch (e) { res.status(500).json({ message: e.message }); }
+    res.json({
+      message: "Claimed!",
+      amount,
+      balance: wallet.balance,
+    });
+  } catch (e) {
+    console.error("handleCheckIn error:", e);
+    res.status(500).json({ message: e.message });
+  }
 };
