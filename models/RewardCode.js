@@ -6,12 +6,13 @@ const rewardCodeSchema = new mongoose.Schema({
   fixedReward: { type: Number },
   minReward: { type: Number },
   maxReward: { type: Number },
+  totalAmount: { type: Number, required: true }, // total pool set by admin
   maxUsers: { type: Number, required: true },
   redeemedCount: { type: Number, default: 0 },
   redeemedBy: [
     {
       userId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-      amount: Number,
+      amount: { type: Number },
       redeemedAt: { type: Date, default: Date.now },
     },
   ],
