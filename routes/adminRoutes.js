@@ -1,29 +1,59 @@
 import { Router } from "express";
 import { protect } from "../Middlewares/authMiddleware.js";
-import role from "../Middlewares/roleMiddleware.js";
-import * as A from "../Controllers/AdminController.js";
-import * as W from "../Controllers/WalletController.js";
+import restrictTo from "../Middlewares/roleMiddleware.js";
+import {
+  getAllUsers,
+  blockUser,
+  changeRole,
+  assignBadge,
+  updateAdminPermissions,
+  getAnalytics,
+  getSettings,
+  updateSettings,
+  updateBadgeTiers,
+  addAnnouncement,
+  updateAnnouncement,
+  deleteAnnouncement,
+  createPoll,
+  closePoll,
+  deletePoll,
+  handleCheckIn,
+} from "../Controllers/AdminController.js";
+import {
+  editWalletBalance,
+  processWithdrawal,
+} from "../Controllers/WalletController.js";
 
 const router = Router();
-const isAdmin = [protect, role("admin", "superadmin")];
-const isSuperAdmin = [protect, role("superadmin")];
 
-router.get("/users", ...isAdmin, A.getAllUsers);
-router.put("/block-user", ...isAdmin, A.blockUser);
-router.put("/change-role", ...isSuperAdmin, A.changeRole);
-router.put("/assign-badge", ...isAdmin, A.assignBadge);
-router.put("/admin-permissions", ...isSuperAdmin, A.updateAdminPermissions);
-router.get("/analytics", ...isAdmin, A.getAnalytics);
-router.get("/settings", ...isAdmin, A.getSettings);
-router.put("/settings", ...isAdmin, A.updateSettings);
-router.put("/badge-tiers", ...isAdmin, A.updateBadgeTiers);
-router.post("/announcements", ...isAdmin, A.addAnnouncement);
-router.put("/announcements/:id", ...isAdmin, A.updateAnnouncement);
-router.delete("/announcements/:id", ...isAdmin, A.deleteAnnouncement);
-router.post("/polls", ...isAdmin, A.createPoll);
-router.put("/polls/:id/close", ...isAdmin, A.closePoll);
-router.delete("/polls/:id", ...isAdmin, A.deletePoll);
-router.put("/wallet/edit", ...isAdmin, W.editWalletBalance);
-router.put("/wallet/process-withdrawal", ...isAdmin, W.processWithdrawal);
+// ── User management ──────────────────────────────────────────────
+router.get("/users", protect, restrictTo("admin", "superadmin"), getAllUsers);
+router.put("/block-user", protect, restrictTo("admin", "superadmin"), blockUser);
+router.put("/change-role", protect, restrictTo("superadmin"), changeRole);
+router.put("/assign-badge", protect, restrictTo("admin", "superadmin"), assignBadge);
+router.put("/admin-permissions", protect, restrictTo("superadmin"), updateAdminPermissions);
+
+// ── Analytics & settings ─────────────────────────────────────────
+router.get("/analytics", protect, restrictTo("admin", "superadmin"), getAnalytics);
+router.get("/settings", protect, restrictTo("admin", "superadmin"), getSettings);
+router.put("/settings", protect, restrictTo("admin", "superadmin"), updateSettings);
+router.put("/badge-tiers", protect, restrictTo("admin", "superadmin"), updateBadgeTiers);
+
+// ── Announcements ────────────────────────────────────────────────
+router.post("/announcements", protect, restrictTo("admin", "superadmin"), addAnnouncement);
+router.put("/announcements/:id", protect, restrictTo("admin", "superadmin"), updateAnnouncement);
+router.delete("/announcements/:id", protect, restrictTo("admin", "superadmin"), deleteAnnouncement);
+
+// ── Polls ────────────────────────────────────────────────────────
+router.post("/polls", protect, restrictTo("admin", "superadmin"), createPoll);
+router.put("/polls/:id/close", protect, restrictTo("admin", "superadmin"), closePoll);
+router.delete("/polls/:id", protect, restrictTo("admin", "superadmin"), deletePoll);
+
+// ── Wallet management ────────────────────────────────────────────
+router.put("/wallet/edit", protect, restrictTo("admin", "superadmin"), editWalletBalance);
+router.put("/wallet/process-withdrawal", protect, restrictTo("admin", "superadmin"), processWithdrawal);
+
+// ── Daily check-in (any logged-in user) ─────────────────────────
+router.post("/daily-checkin", protect, handleCheckIn);
 
 export default router;
