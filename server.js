@@ -4,7 +4,9 @@ import http from "http";
 import { Server } from "socket.io";
 import app from "./app.js";
 import Message from "./models/Message.js";
+import ChatRoom from "./models/ChatRoom.js";
 import { autoApproveOverdue } from "./Controllers/CampaignController.js";
+import { getGlobalRoom } from "./Controllers/ChatController.js";
 
 dotenv.config();
 
@@ -14,7 +16,6 @@ mongoose
   .catch((err) => console.log("❌ MongoDB error:", err));
 
 const PORT = process.env.PORT || 10000;
-
 const server = http.createServer(app);
 
 export const io = new Server(server, {
@@ -32,22 +33,28 @@ export const io = new Server(server, {
 
 app.set("io", io);
 
+// ── URL regex (same as controller) ───────────────────────────────
+const URL_REGEX = /(https?:\/\/|www\.)[^\s]+/i;
+
 io.on("connection", (socket) => {
   console.log("🔌 New client connected:", socket.id);
 
-  socket.on("sendMessage", async (data) => {
-    try {
-      const newMessage = new Message({ sender: data.userId, content: data.content, type: "text" });
-      await newMessage.save();
-      const populated = await newMessage.populate("sender", "fullName badge referralLevel");
-      io.emit("receiveMessage", populated);
-    } catch (err) {
-      console.error("❌ Error saving message:", err);
-    }
+  // Client joins the main room with their userId + token info
+  socket.on("join_room", ({ userId, role } = {}) => {
+    socket.data.userId = userId;
+    socket.data.role   = role;
+    socket.join("main_room");
+    console.log(`👤 ${userId} (${role}) joined main_room`);
   });
 
-  socket.on("typing", ({ userName }) => socket.broadcast.emit("typing", { userName }));
-  socket.on("disconnect", () => console.log("❌ Client disconnected:", socket.id));
+  // Typing indicator — broadcast to everyone else in room
+  socket.on("typing", ({ userName }) => {
+    if (userName) socket.to("main_room").emit("typing", { userName });
+  });
+
+  socket.on("disconnect", () => {
+    console.log("❌ Client disconnected:", socket.id);
+  });
 });
 
 // ── Auto-approve cron — runs every 6 hours ─────────────────────
