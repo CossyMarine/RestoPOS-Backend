@@ -21,9 +21,6 @@ import chatRoutes from "./routes/ChatRoutes.js";
 
 dotenv.config();
 
-/* =================================================
-   CORS
-================================================= */
 const ALLOWED_ORIGINS = [
   "https://mainecash.vercel.app",
   "http://localhost:5173",
@@ -40,41 +37,23 @@ const corsOptions = {
   credentials: true,
 };
 
-/* =================================================
-   APP
-================================================= */
 const app = express();
 
 app.set("trust proxy", 1);
 
-/* Security */
 app.use(helmet());
-
-/* Rate limit */
-app.use(
-  rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: 100,
-  })
-);
-
+app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 100 }));
 app.use(cors(corsOptions));
 app.options(/.*/, cors(corsOptions));
-
-/* Body parser */
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 app.use(morgan("dev"));
 app.use(cookieParser());
 
-/* Health check */
 app.get("/", (req, res) => {
   res.json({ status: "MarineCash backend running" });
 });
 
-/* =================================================
-   ROUTES
-================================================= */
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/wallet", walletRoutes);
@@ -86,12 +65,7 @@ app.use("/api/moderator", moderatorRoutes);
 app.use("/api/rewardcode", rewardCodeRoutes);
 app.use("/api/referral", referralRoutes);
 app.use("/api/chat", chatRoutes);
-// ✅ Daily check-in — user calls this, just needs to be logged in
-router.post("/daily-checkin", protect, A.handleCheckIn);
 
-/* =================================================
-   ERROR HANDLER
-================================================= */
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(err.status || 500).json({ message: err.message || "Server Error" });
