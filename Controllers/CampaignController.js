@@ -550,3 +550,19 @@ export const autoApproveOverdue = async () => {
     console.error("autoApproveOverdue error:", e.message);
   } finally { session.endSession(); }
 };
+
+// ─── Image upload: base64 → store (swap for Cloudinary if needed) ─
+export const uploadCampaignImage = async (req, res) => {
+  try {
+    const { imageBase64, mimeType = "image/jpeg" } = req.body;
+    if (!imageBase64) return res.status(400).json({ message: "imageBase64 is required" });
+
+    // If you have Cloudinary wired up, replace this block with a cloudinary.uploader.upload() call.
+    // For now we return the data URL — works fine for display, just not CDN-hosted.
+    const dataUrl = `data:${mimeType};base64,${imageBase64}`;
+
+    res.json({ url: dataUrl });
+  } catch (e) {
+    res.status(500).json({ message: e.message });
+  }
+};
