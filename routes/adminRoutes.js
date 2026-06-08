@@ -22,6 +22,7 @@ import {
   closePoll,
   deletePoll,
   handleCheckIn,
+  getTopEarners,
 } from "../Controllers/AdminController.js";
 import {
   editWalletBalance,
@@ -63,5 +64,8 @@ router.put("/wallet/process-withdrawal",  protect, restrictTo("admin", "superadm
 
 // ── Daily check-in ───────────────────────────────────────────────
 router.post("/daily-checkin", protect, handleCheckIn);
+
+//Top Earners
+router.get("/top-earners", protect, getTopEarners);
 
 export default router;
