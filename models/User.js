@@ -21,12 +21,12 @@ const userSchema = new mongoose.Schema(
     referralCode:      { type: String, unique: true },
     referrals:         { type: Number, default: 0 },
     referralLevel:     { type: Number, default: 0 },
-    badge:             { type: String, default: null },
+    badge:             { type: mongoose.Schema.Types.ObjectId, ref: "Badge", default: null },
     onlineStatus:      { type: Boolean, default: false },
     lastCheckIn:       { type: Date },
-    lastCheckInDate:   { type: String, default: null }, // "2026-06-08" in user's local tz
+    lastCheckInDate:   { type: String, default: null },
     hiddenSections:    { type: [String], default: [] },
-    photo: { type: String, default: null },
+    photo:             { type: String, default: null },
   },
   { timestamps: true }
 );
