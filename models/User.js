@@ -6,7 +6,10 @@ const userSchema = new mongoose.Schema(
     uniqueId: { type: String, default: () => uuidv4(), unique: true },
     fullName: { type: String, required: true, trim: true },
     email: { type: String, required: true, unique: true, lowercase: true },
-    country: { type: String, required: true },
+    gender: { type: String, enum: ["male", "female", "prefer_not_to_say"], required: true },
+    country: { type: String, required: true },          // from IP detection
+    phoneCountry: { type: String, default: null },      // from phone dial code
+    countryMismatch: { type: Boolean, default: false }, // IP country ≠ phone country
     phone: { type: String, required: true, unique: true },
     password: { type: String, required: true, minlength: 6 },
     isVerified: { type: Boolean, default: false },
