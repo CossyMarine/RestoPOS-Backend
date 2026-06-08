@@ -295,3 +295,52 @@ export const deleteUser = async (req, res) => {
     res.json({ message: "User deleted" });
   } catch (e) { res.status(500).json({ message: e.message }); }
 };
+
+// GET /admin/top-earners  (also used publicly)
+export const getTopEarners = async (req, res) => {
+  try {
+    const settings = await Settings.getSingleton();
+
+    // Admin can always see; regular users respect the toggle
+    const isAdmin = ["admin", "superadmin"].includes(req.user?.role);
+    if (!isAdmin && !settings.showTopEarners)
+      return res.json({ visible: false, earners: [] });
+
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000); // rolling 24h
+
+    const top = await WalletTransaction.aggregate([
+      {
+        $match: {
+          createdAt: { $gte: since },
+          type: { $in: ["task_reward", "referral_bonus", "daily_checkin", "reward_code", "signup_bonus"] },
+          status: "completed",
+        },
+      },
+      { $group: { _id: "$user", totalEarned: { $sum: "$amount" } } },
+      { $sort: { totalEarned: -1 } },
+      { $limit: 10 },
+      {
+        $lookup: {
+          from: "users",
+          localField: "_id",
+          foreignField: "_id",
+          as: "user",
+        },
+      },
+      { $unwind: "$user" },
+      {
+        $project: {
+          firstName:   { $arrayElemAt: [{ $split: ["$user.fullName", " "] }, 0] },
+          country:     "$user.country",
+          phoneCountry:"$user.phoneCountry",
+          badge:       "$user.badge",
+          totalEarned: 1,
+        },
+      },
+    ]);
+
+    res.json({ visible: true, earners: top });
+  } catch (e) {
+    res.status(500).json({ message: e.message });
+  }
+};
