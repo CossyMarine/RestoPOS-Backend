@@ -24,6 +24,7 @@ import disputeRoutes from "./routes/AdminDisputeRoutes.js";
 import faqRoutes from "./routes/FAQRoutes.js";
 import supportRoutes from "./routes/SupportRoutes.js";
 import announcementRoutes from "./routes/AnnouncementRoutes.js";
+import badgeRoutes from "./routes/BadgeRoutes.js";
 
 dotenv.config();
 
@@ -83,6 +84,7 @@ app.use("/api/admin/disputes", disputeRoutes);
 app.use("/api/faq", faqRoutes);
 app.use("/api/support", supportRoutes);
 app.use("/api/announcements", announcementRoutes);
+app.use("/api/badges",           badgeRoutes);
 
 app.use((err, req, res, next) => {
   console.error(err.stack);
