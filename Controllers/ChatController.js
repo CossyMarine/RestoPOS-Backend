@@ -57,9 +57,14 @@ function isActiveBan(ban) {
 }
 
 // ── Reusable populate helper ──────────────────────────────────────
+
 function populateMessage(query) {
   return query
-    .populate("sender", "fullName badge referralLevel role")
+    .populate({
+      path: "sender",
+      select: "fullName badge referralLevel role",
+      populate: { path: "badge", select: "name imageUrl hidden" },
+    })
     .populate("reactions.user", "fullName")
     .populate({
       path: "replyTo",
@@ -67,7 +72,6 @@ function populateMessage(query) {
       populate: { path: "sender", select: "fullName" },
     });
 }
-
 // ── Get messages ──────────────────────────────────────────────────
 export const getMessages = async (req, res) => {
   try {
