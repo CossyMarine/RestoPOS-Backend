@@ -341,6 +341,7 @@ export const getTopEarners = async (req, res) => {
           firstName:   { $arrayElemAt: [{ $split: ["$user.fullName", " "] }, 0] },
           country:     "$user.country",
           phoneCountry:"$user.phoneCountry",
+          photo:       "$user.photo",
           totalEarned: 1,
           badge: {
             $cond: {
