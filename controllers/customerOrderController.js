@@ -1,5 +1,6 @@
 // controllers/customerOrderController.js
 import Order from "../models/Order.js";
+import Receipt from "../models/Receipt.js";
 import { generateReceiptForOrder } from "../utils/generateReceipt.js";
 
 // @desc    Place an order — public, no login, guest session
@@ -13,7 +14,7 @@ export const createCustomerOrder = async (req, res) => {
   if (!items || items.length === 0) return res.status(400).json({ message: "Cart is empty" });
 
   try {
-    const subtotal = items.reduce((sum, i) => sum + i.qty * i.price, 0);
+    const subtotal = items.reduce((sum, i) => sum + i.quantity * i.unitPrice, 0);
 
     const order = await Order.create({
       tableNumber,
@@ -38,19 +39,24 @@ export const createCustomerOrder = async (req, res) => {
   }
 };
 
-// @desc    Get a guest's own orders
-// @route   GET /api/orders/customer?session_id=xxx
+// @desc    Get a guest's own orders, with their bill ID attached
+// @route   GET /api/orders/customer?sessionId=xxx
 // @access  Public
 export const getCustomerOrders = async (req, res) => {
-  const { session_id } = req.query;
-  if (!session_id) return res.status(400).json({ message: "session_id is required" });
+  const { sessionId } = req.query;
+  if (!sessionId) return res.status(400).json({ message: "sessionId is required" });
 
   try {
-    const orders = await Order.find({ guestSessionId: session_id })
+    const orders = await Order.find({ guestSessionId: sessionId })
       .sort({ createdAt: -1 })
-      .limit(20);
+      .limit(20)
+      .lean();
 
-    res.json(orders);
+    const orderIds = orders.map((o) => o._id);
+    const receipts = await Receipt.find({ order: { $in: orderIds } }).select("order billId").lean();
+    const billIdByOrder = Object.fromEntries(receipts.map((r) => [String(r.order), r.billId]));
+
+    res.json(orders.map((o) => ({ ...o, billId: billIdByOrder[String(o._id)] || null })));
   } catch (error) {
     console.error("Error fetching customer orders:", error.message);
     res.status(500).json({ message: "Failed to fetch orders" });
@@ -62,13 +68,13 @@ export const getCustomerOrders = async (req, res) => {
 // @access  Public — guarded by guest session match
 export const cancelCustomerOrder = async (req, res) => {
   const { id } = req.params;
-  const { session_id } = req.body;
+  const { sessionId } = req.body;
 
   try {
     const order = await Order.findById(id);
 
     if (!order) return res.status(404).json({ message: "Order not found" });
-    if (order.guestSessionId !== session_id) {
+    if (order.guestSessionId !== sessionId) {
       return res.status(403).json({ message: "Not authorized to cancel this order" });
     }
     if (order.status !== "pending") {
