@@ -3,10 +3,10 @@ import mongoose from "mongoose";
 
 const orderItemSchema = new mongoose.Schema(
   {
-    meal:  { type: String, required: true },
-    qty:   { type: Number, required: true },
-    price: { type: Number, required: true },
-    total: { type: Number, required: true },
+    mealName:  { type: String, required: true },
+    quantity:  { type: Number, required: true },
+    unitPrice: { type: Number, required: true },
+    lineTotal: { type: Number, required: true },
   },
   { _id: false }
 );
@@ -22,9 +22,8 @@ const orderSchema = new mongoose.Schema(
       enum: ["pending", "completed", "cancelled"],
       default: "pending",
     },
-    // Where the order came from
     source: { type: String, enum: ["staff", "online"], default: "staff" },
-    guestSessionId: { type: String, default: null }, // for online/customer orders
+    guestSessionId: { type: String, default: null },
     customerName:   { type: String, default: null },
   },
   { timestamps: true }
