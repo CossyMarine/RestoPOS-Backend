@@ -1,17 +1,23 @@
+// models/User.js
 import mongoose from "mongoose";
-import { v4 as uuidv4 } from "uuid";
 
 const userSchema = new mongoose.Schema(
   {
-    uniqueId:   { type: String, default: () => uuidv4(), unique: true },
-    fullName:   { type: String, required: true, trim: true },
-    email:      { type: String, required: true, unique: true, lowercase: true },
-    phone:      { type: String, required: true, unique: true },
-    password:   { type: String, required: true, minlength: 6 },
-    isVerified: { type: Boolean, default: true },   // no email verification step
-    isBlocked:  { type: Boolean, default: false },
-    role:       { type: String, enum: ["user", "admin", "superadmin"], default: "user" },
-    photo:      { type: String, default: null },
+    username: {
+      type: String,
+      required: true,
+      unique: true,
+      trim: true,
+      lowercase: true,
+    },
+    password: { type: String, required: true }, // bcrypt hash
+    fullName: { type: String, required: true },
+    role: {
+      type: String,
+      enum: ["admin", "manager", "cashier", "waiter", "kitchen", "accountant"],
+      required: true,
+    },
+    isActive: { type: Boolean, default: true },
   },
   { timestamps: true }
 );
