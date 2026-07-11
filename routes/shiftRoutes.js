@@ -7,7 +7,7 @@ import {
   getShiftSummary,
   closeShift,
 } from "../controllers/shiftController.js";
-import { protect } from "../middlewares/authMiddleware.js";
+import { protect } from "../Middlewares/authMiddleware.js";
 
 const router = express.Router();
 
