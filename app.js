@@ -22,7 +22,17 @@ const app = express();
 app.set("trust proxy", 1);
 
 /* CORS */
-app.use(cors());
+const ALLOWED_ORIGINS = [
+  "https://resto-pos-frontend.vercel.app",
+  "http://localhost:3000", // local dev
+];
+
+app.use(
+  cors({
+    origin: ALLOWED_ORIGINS,
+    credentials: true,
+  })
+);
 
 /* Body parser */
 app.use(express.json());
