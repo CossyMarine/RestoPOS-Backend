@@ -10,11 +10,24 @@ const userSchema = new mongoose.Schema(
       trim: true,
       lowercase: true,
     },
+    email: {
+      type: String,
+      trim: true,
+      lowercase: true,
+      unique: true,
+      sparse: true, // allows many docs with no email
+    },
+    phone: {
+      type: String,
+      trim: true,
+      unique: true,
+      sparse: true, // allows many docs with no phone
+    },
     password: { type: String, required: true }, // bcrypt hash
     fullName: { type: String, required: true },
     role: {
       type: String,
-      enum: ["admin", "manager", "cashier", "waiter", "kitchen", "accountant"],
+      enum: ["admin", "manager", "cashier", "waiter", "kitchen", "accountant", "customer"],
       required: true,
     },
     isActive: { type: Boolean, default: true },
