@@ -24,9 +24,14 @@ const server = http.createServer(app);
 /* ========================================
    🔌 SOCKET.IO SETUP
 ======================================== */
+const ALLOWED_ORIGINS = [
+  "https://resto-pos-frontend.vercel.app",
+  "http://localhost:3000", // local dev
+];
+
 export const io = new Server(server, {
   cors: {
-    origin: "*", // tighten this to your frontend URL(s) in production
+    origin: ALLOWED_ORIGINS,
     methods: ["GET", "POST", "PATCH"],
   },
 });
