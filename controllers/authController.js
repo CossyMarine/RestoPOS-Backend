@@ -3,14 +3,37 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 
-// @desc    Authenticate user and return JWT
+const signToken = (user) =>
+  jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, {
+    expiresIn: "12h",
+  });
+
+const publicUser = (user) => ({
+  id: user._id,
+  username: user.username,
+  fullName: user.fullName,
+  role: user.role,
+  email: user.email || null,
+  phone: user.phone || null,
+});
+
+// @desc    Authenticate any user (customer, waiter, kitchen, accountant, admin...)
+//          by username, email, or phone — one login page for everyone
 // @route   POST /api/auth/login
 // @access  Public
 export const login = async (req, res) => {
   try {
-    const { username, password } = req.body;
+    const { identifier, password } = req.body;
 
-    const user = await User.findOne({ username: username?.toLowerCase().trim() });
+    if (!identifier || !password) {
+      return res.status(400).json({ message: "Enter your login and password" });
+    }
+
+    const value = identifier.toLowerCase().trim();
+
+    const user = await User.findOne({
+      $or: [{ username: value }, { email: value }, { phone: identifier.trim() }],
+    });
 
     if (!user || !user.isActive) {
       return res.status(401).json({ message: "Invalid credentials" });
@@ -21,33 +44,61 @@ export const login = async (req, res) => {
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
-    const token = jwt.sign(
-      { id: user._id, role: user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: "12h" }
-    );
-
-    res.json({
-      token,
-      user: {
-        id: user._id,
-        username: user.username,
-        fullName: user.fullName,
-        role: user.role,
-      },
-    });
+    res.json({ token: signToken(user), user: publicUser(user) });
   } catch (error) {
     console.error("Login error:", error.message);
     res.status(500).json({ message: "Server error" });
   }
 };
 
-// @desc    Create a new staff user
+// @desc    Self-registration for customers (phone OR email + username + password)
+// @route   POST /api/auth/register-customer
+// @access  Public
+export const registerCustomer = async (req, res) => {
+  try {
+    const { method, contact, username, password, fullName } = req.body;
+
+    if (!method || !contact || !username || !password) {
+      return res.status(400).json({ message: "All fields are required" });
+    }
+    if (!["email", "phone"].includes(method)) {
+      return res.status(400).json({ message: "Choose email or phone" });
+    }
+
+    const cleanUsername = username.toLowerCase().trim();
+    const cleanContact = method === "email" ? contact.toLowerCase().trim() : contact.trim();
+
+    const orClauses = [{ username: cleanUsername }];
+    orClauses.push(method === "email" ? { email: cleanContact } : { phone: cleanContact });
+
+    const existing = await User.findOne({ $or: orClauses });
+    if (existing) {
+      return res.status(400).json({ message: "Username or contact already in use" });
+    }
+
+    const hashed = await bcrypt.hash(password, 10);
+
+    const user = await User.create({
+      username: cleanUsername,
+      password: hashed,
+      fullName: fullName || cleanUsername,
+      role: "customer",
+      [method]: cleanContact,
+    });
+
+    res.status(201).json({ token: signToken(user), user: publicUser(user) });
+  } catch (error) {
+    console.error("Register customer error:", error.message);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// @desc    Create a new staff user (admin/manager only)
 // @route   POST /api/auth/register
 // @access  Protected — admin, manager
 export const createUser = async (req, res) => {
   try {
-    const { username, password, fullName, role } = req.body;
+    const { username, password, fullName, role, email, phone } = req.body;
 
     if (!username || !password || !fullName || !role) {
       return res.status(400).json({ message: "All fields are required" });
@@ -65,16 +116,13 @@ export const createUser = async (req, res) => {
       password: hashed,
       fullName,
       role,
+      email: email?.toLowerCase().trim() || undefined,
+      phone: phone?.trim() || undefined,
     });
 
     res.status(201).json({
       message: "User created successfully",
-      user: {
-        id: user._id,
-        username: user.username,
-        fullName: user.fullName,
-        role: user.role,
-      },
+      user: publicUser(user),
     });
   } catch (error) {
     console.error("Create user error:", error.message);
