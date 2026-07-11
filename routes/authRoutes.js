@@ -1,7 +1,7 @@
 // routes/authRoutes.js
 import express from "express";
 import { login, createUser, getWaiters } from "../controllers/authController.js";
-import { protect, authorize } from "../middlewares/authMiddleware.js";
+import { protect, authorize } from "../Middlewares/authMiddleware.js";
 
 const router = express.Router();
 
