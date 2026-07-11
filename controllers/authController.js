@@ -51,12 +51,34 @@ export const login = async (req, res) => {
   }
 };
 
+// @desc    Check if a username or a contact (email/phone) is already taken —
+//          used for live validation while the person is typing
+// @route   GET /api/auth/check-availability?field=email&value=jane@mail.com
+// @access  Public
+export const checkAvailability = async (req, res) => {
+  try {
+    const { field, value } = req.query;
+
+    if (!field || !value || !["username", "email", "phone"].includes(field)) {
+      return res.status(400).json({ message: "Invalid check request" });
+    }
+
+    const clean = field === "phone" ? value.trim() : value.toLowerCase().trim();
+    const existing = await User.findOne({ [field]: clean }).select("_id");
+
+    res.json({ available: !existing });
+  } catch (error) {
+    console.error("Check availability error:", error.message);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 // @desc    Self-registration for customers (phone OR email + username + password)
 // @route   POST /api/auth/register-customer
 // @access  Public
 export const registerCustomer = async (req, res) => {
   try {
-    const { method, contact, username, password, fullName } = req.body;
+    const { method, contact, username, password } = req.body;
 
     if (!method || !contact || !username || !password) {
       return res.status(400).json({ message: "All fields are required" });
@@ -64,16 +86,24 @@ export const registerCustomer = async (req, res) => {
     if (!["email", "phone"].includes(method)) {
       return res.status(400).json({ message: "Choose email or phone" });
     }
+    if (password.length < 6) {
+      return res.status(400).json({ message: "Password must be at least 6 characters" });
+    }
 
     const cleanUsername = username.toLowerCase().trim();
     const cleanContact = method === "email" ? contact.toLowerCase().trim() : contact.trim();
 
-    const orClauses = [{ username: cleanUsername }];
-    orClauses.push(method === "email" ? { email: cleanContact } : { phone: cleanContact });
+    // Check username and contact separately so the error is specific
+    const usernameTaken = await User.findOne({ username: cleanUsername });
+    if (usernameTaken) {
+      return res.status(400).json({ message: "That username is already taken" });
+    }
 
-    const existing = await User.findOne({ $or: orClauses });
-    if (existing) {
-      return res.status(400).json({ message: "Username or contact already in use" });
+    const contactTaken = await User.findOne({ [method]: cleanContact });
+    if (contactTaken) {
+      return res.status(400).json({
+        message: method === "email" ? "This email is already registered" : "This phone number is already registered",
+      });
     }
 
     const hashed = await bcrypt.hash(password, 10);
@@ -81,7 +111,7 @@ export const registerCustomer = async (req, res) => {
     const user = await User.create({
       username: cleanUsername,
       password: hashed,
-      fullName: fullName || cleanUsername,
+      fullName: cleanUsername, // no separate full-name field collected at signup
       role: "customer",
       [method]: cleanContact,
     });
