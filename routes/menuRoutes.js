@@ -1,7 +1,7 @@
 // routes/menuRoutes.js
 import express from "express";
 import { getMenu, createMenuItem } from "../controllers/menuController.js";
-import { protect, authorize } from "../middlewares/authMiddleware.js";
+import { protect, authorize } from "../Middlewares/authMiddleware.js";
 
 const router = express.Router();
 
